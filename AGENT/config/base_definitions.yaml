@@ -1,0 +1,236 @@
+data_definitions:
+  tables:
+    - name: "users"
+      source_table: "legacy_users_table"
+      target_table: "new_users_table"
+      column_mappings:
+        - source: "user_id"
+          target: "id"
+        - source: "email"
+          target: "email_address"
+        - source: "created_at"
+          target: "creation_date"
+        - source: "balance"
+          target: "account_balance"
+
+    - name: "transactions"
+      source_table: "legacy_transactions_table"
+      target_table: "new_transactions_table"
+      column_mappings:
+        - source: "transaction_id"
+          target: "txn_id"
+        - source: "amount"
+          target: "txn_amount"
+        - source: "status"
+          target: "txn_status"
+        - source: "created_at"
+          target: "txn_date"
+
+file_definitions:
+  files:
+    - name: "users.csv"
+      source_path: "/legacy/data/users.csv"
+      target_path: "/new/data/users.csv"
+      headers: "true"
+      format: "csv"  # or "delimited"
+      delimiter: ","
+      column_mappings:
+        - source: "user_id"
+          target: "id"
+        - source: "email"
+          target: "email_address"
+        - source: "created_at"
+          target: "creation_date"
+        - source: "balance"
+          target: "account_balance"
+    - name: "users.csv"
+      source_path: "/legacy/data/users.csv"
+      target_path: "/new/data/users.csv"
+      headers: "false"
+      format: "csv"  # or "delimited"
+      delimiter: ","
+      column_mappings:
+        - source: "user_id"
+          target: "id"
+        - source: "email"
+          target: "email_address"
+        - source: "created_at"
+          target: "creation_date"
+        - source: "balance"
+          target: "account_balance"
+      column_definitions:
+        - name: "id"
+          type: "integer"
+          delimiter_index: 0 # Index for delimited format
+        - name: "name"
+          type: "string"
+          delimiter_index: 1
+        - name: "amount"
+          type: "float"
+          delimiter_index: 2
+    - name: "transactions.csv"
+      source_path: "/legacy/data/transactions.csv"
+      target_path: "/new/data/transactions.csv"
+      column_mappings:
+        - source: "transaction_id"
+          target: "txn_id"
+        - source: "amount"
+          target: "txn_amount"
+        - source: "status"
+          target: "txn_status"
+        - source: "created_at"
+          target: "txn_date"
+    - name: "legacy_flat_file.dat"
+      source_path: "/legacy/data/flat_file.dat"
+      target_path: "/new/data/flat_file.dat"
+      format: "fixed-width"  # or "delimited"
+      column_definitions:
+        - name: "id"
+          type: "integer"
+          start: 0          # Start position for fixed-width
+          length: 10        # Length for fixed-width
+          delimiter_index: 0 # Index for delimited format
+        - name: "name"
+          type: "string"
+          start: 10
+          length: 20
+          delimiter_index: 1
+        - name: "amount"
+          type: "float"
+          start: 30
+          length: 8
+          delimiter_index: 2
+  json_definitions:
+    objects:
+      - name: "user_profiles"
+        source_path: "/legacy/data/user_profiles.json"
+        target_path: "/new/data/user_profiles.json"
+        key_mappings:
+          - source: "id"
+            target: "user_id"
+          - source: "profile.email"
+            target: "contact.email"
+          - source: "createdAt"
+            target: "creation_date"
+
+yaml_definitions:
+  documents:
+    - name: "user_configs"
+      source_path: "/legacy/configs/user_config.yaml"
+      target_path: "/new/configs/user_config.yaml"
+      key_mappings:
+        - source: "user_id"
+          target: "id"
+        - source: "email"
+          target: "email_address"
+
+grpc_definitions:
+  services:
+    - name: "UserService"
+      source_endpoint: "legacy-service:50051"
+      target_endpoint: "new-service:50051"
+      methods:
+        - name: "GetUser"
+          request_mappings:
+            - source: "user_id"
+              target: "id"
+          response_mappings:
+            - source: "email"
+              target: "email_address"
+            - source: "createdAt"
+              target: "creation_date"
+        - name: "ListUsers"
+          request_mappings: []
+          response_mappings:
+            - source: "users[].id"
+              target: "users[].user_id"
+
+  api_definitions:
+    apis:
+      - name: "UserAPI"
+        source_endpoint: "https://legacy.api/users"
+        target_endpoint: "https://new.api/users"
+        method: "GET"
+        headers:
+          Authorization: "Bearer <token>"
+        response_mappings:
+          - source: "data.id"
+            target: "user_id"
+          - source: "data.email"
+            target: "email_address"
+  xml_definitions:
+    documents:
+      - name: "config.xml"
+        source_path: "/legacy/configs/config.xml"
+        target_path: "/new/configs/config.xml"
+        key_mappings:
+          - source: "/config/user/id"
+            target: "/configuration/user/id"
+  cloud_definitions:
+    s3_buckets:
+      - name: "user-data"
+        source_bucket: "s3://legacy-bucket/users/"
+        target_bucket: "s3://new-bucket/users/"
+        file_types: ["csv", "json"]
+        metadata_comparison: true
+
+  kafka_definitions:
+    topics:
+      - name: "user_events"
+        source_broker: "legacy-kafka:9092"
+        target_broker: "new-kafka:9092"
+        format: "json"
+        key_mappings:
+          - source: "event.id"
+            target: "id"
+  excel_definitions:
+    files:
+      - name: "user_data.xlsx"
+        source_path: "/legacy/data/user_data.xlsx"
+        target_path: "/new/data/user_data.xlsx"
+        sheets:
+          - name: "Sheet1"
+            column_mappings:
+              - source: "user_id"
+                target: "id"
+  flat_file_definitions:
+    files:
+      - name: "legacy_flat_file.dat"
+        source_path: "/legacy/data/flat_file.dat"
+        target_path: "/new/data/flat_file.dat"
+        format: "fixed-width"
+        field_positions:
+          - name: "id"
+            start: 0
+            length: 10
+          - name: "amount"
+            start: 10
+            length: 8
+  event_definitions:
+    webhooks:
+      - name: "UserEventWebhook"
+        source_url: "https://legacy.webhook.endpoint"
+        target_url: "https://new.webhook.endpoint"
+        payload_format: "json"
+        key_mappings:
+          - source: "user_id"
+            target: "id"
+
+  log_definitions:
+    database_logs:
+      - name: "transaction_log"
+        source_path: "/legacy/logs/transaction.log"
+        target_path: "/new/logs/transaction.log"
+        format: "json"
+        key_mappings:
+          - source: "operation_type"
+            target: "action"
+
+  protobuf_definitions:
+    messages:
+      - name: "UserMessage"
+        source_path: "/legacy/protobuf/user.proto"
+        target_path: "/new/protobuf/user.proto"
+        field_mappings:
+          - source: "user_id"
+            target: "id"

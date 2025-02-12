@@ -1,0 +1,253 @@
+project:
+  name: "PxRun - Parallel Runner Tool"
+  version: "1.0.0" 
+  description: "A tool for parallel testing of legacy migrated data using agents."
+  authors:
+    - name: "Ramu Rajasekaran"
+      email: "ramu.rajasekaran@kumaran.com"
+  license: "MIT"
+  created_date: "2025-01-10"
+  last_updated: "2025-01-10"
+
+  environment:
+    legacy_tech:
+      databases:
+        - name: "legacy_db1"
+          host: "legacy-db1-host"
+          port: 5432
+          user: "legacy_user"
+          password: "legacy_password"
+          database_name: "legacy_db1"
+        - name: "legacy_db2"
+          host: "legacy-db2-host"
+          port: 5432
+          user: "legacy_user"
+          password: "legacy_password"
+          database_name: "legacy_db2"
+      files:
+        - name: "legacy_file_set1"
+          base_path: "/path/to/legacy/files1"
+          file_types: ["csv", "txt"]
+        - name: "legacy_file_set2"
+          base_path: "/path/to/legacy/files2"
+          file_types: ["json", "xml"]
+      data_files:
+        - name: "legacy_parquet1"
+          base_path: "/path/to/legacy/data_files1"
+          file_format: "parquet"
+        - name: "legacy_parquet2"
+          base_path: "/path/to/legacy/data_files2"
+          file_format: "parquet"
+    new_tech:
+      databases:
+        - name: "new_db1"
+          host: "new-db1-host"
+          port: 3306
+          user: "new_user"
+          password: "new_password"
+          database_name: "new_db1"
+        - name: "new_db2"
+          host: "new-db2-host"
+          port: 3306
+          user: "new_user"
+          password: "new_password"
+          database_name: "new_db2"
+      files:
+        - name: "new_file_set1"
+          base_path: "/path/to/new/files1"
+          file_types: ["csv", "txt"]
+        - name: "new_file_set2"
+          base_path: "/path/to/new/files2"
+          file_types: ["json", "xml"]
+      data_files:
+        - name: "new_parquet1"
+          base_path: "/path/to/new/data_files1"
+          file_format: "parquet"
+        - name: "new_parquet2"
+          base_path: "/path/to/new/data_files2"
+          file_format: "parquet"
+  agents:
+    - name: "database_comparison_agent"
+      type: "database"
+      description: "Compares tables and records between legacy and new databases"
+      databases:
+        legacy: ["legacy_db1", "legacy_db2"]
+        new: ["new_db1", "new_db2"]
+      methods:
+        - row_comparison
+        - column_comparison
+        - filters
+        - masks
+        - transformers
+      output:
+        report_path: "/path/to/reports/database_comparison"
+
+    - name: "file_comparison_agent"
+      type: "file"
+      description: "Compares file contents between legacy and new systems"
+      files:
+        legacy: ["legacy_file_set1", "legacy_file_set2"]
+        new: ["new_file_set1", "new_file_set2"]
+      methods:
+        - checksum_comparison
+        - filters
+        - masks
+      output:
+        report_path: "/path/to/reports/file_comparison"
+
+    - name: "data_file_comparison_agent"
+      type: "data_file"
+      description: "Compares Parquet data files between legacy and new systems"
+      data_files:
+        legacy: ["legacy_parquet1", "legacy_parquet2"]
+        new: ["new_parquet1", "new_parquet2"]
+      methods:
+        - row_comparison
+        - schema_check
+        - data_value_check
+        - filters
+        - transformers
+      output:
+        report_path: "/path/to/reports/data_file_comparison"
+
+  comparison_methods_available:
+    - name: "checksum_comparison"
+      description: "Compares the hash of files using algorithms like MD5 or SHA-256 to verify file integrity."
+      config:
+        algorithms: ["MD5", "SHA-256"]
+  
+    - name: "column_value_comparison"
+      description: "Compares the column values."
+      config:
+      comparison_methods:
+  - name: "column_value_comparison"
+    description: "Compares column values between source and target datasets."
+    config:
+      key_columns:  # Primary key columns used to match rows between source and target
+        - "id"
+        - "email"
+      included_columns:  # Specify columns to include in the comparison
+        - "name"
+        - "email"
+        - "status"
+      excluded_columns:  # Specify columns to exclude from the comparison
+        - "last_modified"
+        - "audit_log"
+      case_sensitive: false  # Treat string comparisons as case-insensitive (default: true)
+      tolerance:  # Allowable tolerance for numeric comparisons
+        columns:
+          - name: "balance"
+            value: 0.01  # Allow a difference of ±0.01
+      datetime_format:  # Format strings for parsing and comparing datetime columns
+        - column: "created_at"
+          format: "YYYY-MM-DD"
+        - column: "updated_at"
+          format: "YYYY-MM-DD HH:mm:ss"
+      ignore_nulls: true  # Ignore rows where the column value is NULL in both source and target
+      null_handling:  # Specify how to handle NULL values in one dataset but not the other
+        mismatch_policy: "ignore"  # Options: "ignore", "report", "fail"
+      regex_validation:  # Apply regex validation to column values
+        - column: "email"
+          regex: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+      transformers:  # Apply transformations before comparison
+        - column: "email"
+          transform: "lowercase"  # Transform all email addresses to lowercase
+        - column: "status"
+          transform: "map_values"
+          config:
+            mapping:  # Map source values to target values
+              "active": "ACTIVE"
+              "inactive": "INACTIVE"
+
+
+    - name: "byte_by_byte_comparison"
+      description: "Performs a low-level comparison of files byte-by-byte to detect differences."
+
+    - name: "line_by_line_comparison"
+      description: "Reads files line-by-line and compares their contents for differences."
+      config:
+        ignore_whitespace: true
+        case_insensitive: false
+
+    - name: "metadata_comparison"
+      description: "Compares file metadata such as size, creation time, modification time, and permissions."
+      config:
+        attributes_to_compare: ["size", "modification_time", "permissions"]
+
+    - name: "structured_format_comparison"
+      description: "Parses structured files (e.g., JSON, XML) and compares hierarchical content."
+      config:
+        format: ["JSON", "XML", "YAML"]
+        strict_order: false
+
+    - name: "field_by_field_comparison"
+      description: "Compares tabular data files (e.g., CSV) field by field to detect discrepancies."
+      config:
+        delimiter: ","
+        skip_headers: true
+
+    - name: "row_count_validation"
+      description: "Validates the number of rows in files to ensure no data is missing or duplicated."
+
+    - name: "column_schema_validation"
+      description: "Checks the schema (e.g., column names and types) of tabular files for compatibility."
+      config:
+        strict_column_order: false
+        ignore_extra_columns: true
+
+    - name: "delimiter_validation"
+      description: "Ensures files with delimiters (e.g., CSV) conform to the expected format."
+      config:
+        delimiter: ","
+        escape_character: "\\"
+
+    - name: "regex_based_content_validation"
+      description: "Extracts and compares specific patterns in the content using regular expressions."
+      config:
+        patterns: ["\\d{4}-\\d{2}-\\d{2}", "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}"]
+
+    - name: "masked_comparison"
+      description: "Applies masks to sensitive data (e.g., email addresses) before comparison."
+      config:
+        masks:
+          - column: "email"
+            regex: "(.*)@(.*)"
+            replace: "\\1@masked.com"
+
+    - name: "numeric_tolerance_validation"
+      description: "Allows for a tolerance range when comparing numerical values."
+      config:
+        tolerance: 0.01
+
+    - name: "encoding_validation"
+      description: "Validates that file encoding is consistent across legacy and new systems."
+      config:
+        supported_encodings: ["UTF-8", "ASCII"]
+
+    - name: "binary_vs_text_mode_comparison"
+      description: "Differentiates between binary and text files and applies suitable comparison methods."
+
+    - name: "embedded_metadata_comparison"
+      description: "Extracts and compares metadata embedded within files (e.g., EXIF data for images)."
+
+    - name: "case_insensitive_comparison"
+      description: "Ignores differences in letter casing when comparing textual files."
+      config:
+        apply_to: ["file_name", "content"]
+
+    - name: "duplicate_record_detection"
+      description: "Detects duplicate records within or across files and flags them as issues."
+
+    - name: "hierarchical_directory_comparison"
+      description: "Compares files within entire directory structures, ensuring all files and subfolders match."
+      config:
+        ignore_empty_directories: true
+
+    - name: "file_size_comparison"
+      description: "Validates file sizes to detect potential truncation or corruption."
+
+    - name: "diff_tools_integration"
+      description: "Integrates with external diff tools (e.g., diff, kdiff3) for visual comparison."
+      config:
+        diff_tool_path: "/usr/bin/diff"
+

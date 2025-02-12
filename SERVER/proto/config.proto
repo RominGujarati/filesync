@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package config;
+
+option go_package = "/proto";
+
+service ConfigService {
+    rpc SendConfig (stream ConfigFile) returns (Response);
+}
+
+message ConfigFile {
+    string filename = 1;
+    bytes content = 2;
+    string checksum = 3;
+}
+
+message Response {
+    string status = 1;
+}
