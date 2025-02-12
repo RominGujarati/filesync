@@ -112,3 +112,105 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "proto/config.proto",
 }
+
+const (
+	PingService_ReceivePing_FullMethodName = "/config.PingService/ReceivePing"
+)
+
+// PingServiceClient is the client API for PingService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type PingServiceClient interface {
+	ReceivePing(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
+}
+
+type pingServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewPingServiceClient(cc grpc.ClientConnInterface) PingServiceClient {
+	return &pingServiceClient{cc}
+}
+
+func (c *pingServiceClient) ReceivePing(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PingResponse)
+	err := c.cc.Invoke(ctx, PingService_ReceivePing_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// PingServiceServer is the server API for PingService service.
+// All implementations must embed UnimplementedPingServiceServer
+// for forward compatibility.
+type PingServiceServer interface {
+	ReceivePing(context.Context, *PingRequest) (*PingResponse, error)
+	mustEmbedUnimplementedPingServiceServer()
+}
+
+// UnimplementedPingServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedPingServiceServer struct{}
+
+func (UnimplementedPingServiceServer) ReceivePing(context.Context, *PingRequest) (*PingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReceivePing not implemented")
+}
+func (UnimplementedPingServiceServer) mustEmbedUnimplementedPingServiceServer() {}
+func (UnimplementedPingServiceServer) testEmbeddedByValue()                     {}
+
+// UnsafePingServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to PingServiceServer will
+// result in compilation errors.
+type UnsafePingServiceServer interface {
+	mustEmbedUnimplementedPingServiceServer()
+}
+
+func RegisterPingServiceServer(s grpc.ServiceRegistrar, srv PingServiceServer) {
+	// If the following call pancis, it indicates UnimplementedPingServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&PingService_ServiceDesc, srv)
+}
+
+func _PingService_ReceivePing_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PingServiceServer).ReceivePing(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PingService_ReceivePing_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PingServiceServer).ReceivePing(ctx, req.(*PingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// PingService_ServiceDesc is the grpc.ServiceDesc for PingService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var PingService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "config.PingService",
+	HandlerType: (*PingServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ReceivePing",
+			Handler:    _PingService_ReceivePing_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "proto/config.proto",
+}

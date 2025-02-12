@@ -1,4 +1,4 @@
-project:
+project: 
   name: "PxRun - Parallel Runner Tool"
   version: "1.0.0" 
   description: "A tool for parallel testing of legacy migrated data using agents."
@@ -115,12 +115,12 @@ project:
       description: "Compares the hash of files using algorithms like MD5 or SHA-256 to verify file integrity."
       config:
         algorithms: ["MD5", "SHA-256"]
-  
+
     - name: "column_value_comparison"
       description: "Compares the column values."
       config:
       comparison_methods:
-  - name: "column_value_comparison"
+    - name: "column_value_comparison"
     description: "Compares column values between source and target datasets."
     config:
       key_columns:  # Primary key columns used to match rows between source and target
@@ -250,4 +250,4 @@ project:
       description: "Integrates with external diff tools (e.g., diff, kdiff3) for visual comparison."
       config:
         diff_tool_path: "/usr/bin/diff"
-
+ 

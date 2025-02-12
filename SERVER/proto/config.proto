@@ -17,3 +17,16 @@ message ConfigFile {
 message Response {
     string status = 1;
 }
+
+service PingService {
+    rpc ReceivePing (PingRequest) returns (PingResponse);
+}
+
+message PingRequest {
+    string status = 1;
+    string details = 2;
+}
+
+message PingResponse {
+    string message = 1;
+}

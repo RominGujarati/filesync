@@ -5,13 +5,19 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	// "net"
 	"os"
 	"path/filepath"
 	"github.com/fsnotify/fsnotify"
-	pb "server/proto"
-	"google.golang.org/grpc"
 	"crypto/sha256"
 	"encoding/hex"
+	
+	pb "server/proto"
+	// "server/models"
+	"server/db"
+	// "gopkg.in/yaml.v2"
+	"google.golang.org/grpc"
+	"server/ping_listener"
 )
 
 // Function to trigger on file changes
@@ -120,6 +126,32 @@ func listenForChanges() {
 	}
 }
 
+// Config struct for reading from YAML
+// type Config struct {
+// 	Server struct {
+// 		IP   string `yaml:"ip"`
+// 		Port string `yaml:"port"`
+// 	} `yaml:"server"`
+// }
+
+// LoadConfig reads the YAML file
+// func loadConfig(path string) (*Config, error) {
+// 	file, err := os.ReadFile(path)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	var config Config
+// 	err = yaml.Unmarshal(file, &config)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return &config, nil
+// }
+
+
 func main() {
+	db.ConnectDB()
+	go ping_listener.StartPingListener()
 	listenForChanges()
 }

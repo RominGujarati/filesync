@@ -1,5 +1,5 @@
-data_definitions:
-  tables:
+data_definitions: 
+  tables: 
     - name: "users"
       source_table: "legacy_users_table"
       target_table: "new_users_table"

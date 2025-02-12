@@ -1,46 +1,25 @@
 package db
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
 
-	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"server/models"
 )
 
-const (
-	DB_USER     = "your_user"
-	DB_PASSWORD = "your_password"
-	DB_NAME     = "your_database"
-	DB_HOST     = "localhost"
-	DB_PORT     = "5432"
-)
+var DB *gorm.DB
 
-// Open a database connection
-func connectDB() (*sql.DB, error) {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
-
-	db, err := sql.Open("postgres", dsn)
+func ConnectDB() {
+	dsn := ""
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil, err
+		log.Fatal("Failed to connect to database:", err)
 	}
 
-	err = db.Ping()
-	if err != nil {
-		return nil, err
-	}
+	DB = db
+	log.Println("✅ Connected to PostgreSQL")
 
-	fmt.Println("✅ Connected to PostgreSQL")
-	return db, nil
-}
-
-// Save Ping Notification
-func savePing(db *sql.DB, status, details string) {
-	_, err := db.Exec("INSERT INTO pings (status, details) VALUES ($1, $2)", status, details)
-	if err != nil {
-		log.Printf("❌ Failed to save ping: %v\n", err)
-	} else {
-		fmt.Println("📌 Ping saved successfully")
-	}
+	// Auto-migrate tables
+	db.AutoMigrate(&models.Ping{})
 }

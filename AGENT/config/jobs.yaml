@@ -2,7 +2,7 @@ jobs:
   - name: "Database Comparison Job"
     description: "Compare database schemas and data values across environments."
     agent: "Agent_A"  # Assign this job to a specific agent
-  tasks:
+  - tasks:
     - name: "database_schema_comparison_task"
       description: "Task to compare database schemas across multiple databases."
       type: "database"
@@ -137,4 +137,3 @@ jobs:
       dependencies: ["data_file_value_comparison_task"]
       output:
         report_path: "/path/to/reports/regex_validation"
-  
