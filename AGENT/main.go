@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -12,6 +10,8 @@ import (
 	// "time"
 	// "context"
 	"gopkg.in/yaml.v2"
+
+	"agent/utils"
 
 	pb "agent/proto"
 	"google.golang.org/grpc"
@@ -69,12 +69,6 @@ func sendPingNotification(message string) {
 // 	}
 // }
 
-
-// Function to compute SHA-256 checksum of a file
-func computeChecksum(data []byte) string {
-	hash := sha256.Sum256(data)
-	return hex.EncodeToString(hash[:])
-}
 
 type server struct {
 	pb.UnimplementedConfigServiceServer
@@ -140,7 +134,7 @@ func (s *server) SendConfig(stream pb.ConfigService_SendConfigServer) error {
 		}
 
 		// Compute checksum of received YAML file
-		calculatedChecksum := computeChecksum(req.Content)
+		calculatedChecksum := utils.ComputeChecksum(req.Content)
 
 		// Compare received checksum with calculated one
 		if req.Checksum != calculatedChecksum {

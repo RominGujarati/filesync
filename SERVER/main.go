@@ -5,19 +5,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+
 	// "net"
 	"os"
 	"path/filepath"
+
 	"github.com/fsnotify/fsnotify"
-	"crypto/sha256"
-	"encoding/hex"
-	
+
 	pb "server/proto"
 	// "server/models"
 	"server/db"
 	// "gopkg.in/yaml.v2"
-	"google.golang.org/grpc"
 	"server/ping_listener"
+	"server/routes"
+	"server/utils"
+
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
 )
 
 // Function to trigger on file changes
@@ -34,13 +38,6 @@ func triggerMainFunction() {
 	SendConfigToAgent()
 }
 
-
-// Function to compute SHA-256 checksum
-func computeChecksum(data []byte) string {
-	hash := sha256.Sum256(data)
-	return hex.EncodeToString(hash[:])
-}
-
 func SendConfigToAgent() {
 	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
 	if err != nil {
@@ -51,7 +48,8 @@ func SendConfigToAgent() {
 	client := pb.NewConfigServiceClient(conn)
 	stream, err := client.SendConfig(context.Background())
 	if err != nil {
-		log.Fatalf("Error creating stream: %v", err)
+		log.Printf("Error creating stream: %v", err)
+		return
 	}
 
 	configPath := "./config"
@@ -66,7 +64,7 @@ func SendConfigToAgent() {
 			}
 
 			// Compute checksum for YAML file
-			checksum := computeChecksum(content)
+			checksum := utils.ComputeChecksum(content)
 
 			req := &pb.ConfigFile{
 				Filename: filepath.Base(path),
@@ -107,7 +105,12 @@ func listenForChanges() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Listening for changes in the /config folder...")
+	err = watcher.Add(configPath + "/jobs")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Listening for changes in the /config and /config/jobs folders...")
 
 	for {
 		select {
@@ -149,9 +152,13 @@ func listenForChanges() {
 // 	return &config, nil
 // }
 
-
 func main() {
 	db.ConnectDB()
+	r := gin.Default()
+	// Register authentication routes
+	routes.AuthRoutes(r)
+	routes.ProtectedRoutes(r)
+	go r.Run(":8080")
 	go ping_listener.StartPingListener()
 	listenForChanges()
 }
