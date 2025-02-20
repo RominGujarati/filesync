@@ -12,6 +12,7 @@ message ConfigFile {
     string filename = 1;
     bytes content = 2;
     string checksum = 3;
+    string eventtype = 4;
 }
 
 message Response {

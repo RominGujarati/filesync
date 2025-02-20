@@ -5,40 +5,46 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-
-	// "net"
-	"os"
-	"path/filepath"
-
 	"github.com/fsnotify/fsnotify"
-
 	pb "server/proto"
-	// "server/models"
 	"server/db"
-	// "gopkg.in/yaml.v2"
 	"server/ping_listener"
 	"server/routes"
 	"server/utils"
-
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 )
 
-// Function to trigger on file changes
 func onConfigChange(event fsnotify.Event) {
-	fmt.Printf("Config changed: %s, Event: %s\n", event.Name, event.Op)
-	// Call your main function or any specific function
-	triggerMainFunction()
+	eventType := ""
+
+	switch {
+	case event.Op&fsnotify.Create == fsnotify.Create:
+		eventType = "create"
+	case event.Op&fsnotify.Write == fsnotify.Write:
+		eventType = "modify"
+	case event.Op&fsnotify.Remove == fsnotify.Remove:
+		eventType = "delete"
+	case event.Op&fsnotify.Rename == fsnotify.Rename:
+		eventType = "rename"
+	}
+
+	if eventType == "" {
+		return
+	}
+	
+	fmt.Printf("📂 Event: %s | File: %s\n", eventType, event.Name)
+	triggerMainFunction(eventType, event.Name)
 }
 
 // Placeholder for the function to trigger
-func triggerMainFunction() {
+func triggerMainFunction(eventType string, filename string) {
 	fmt.Println("Triggered main function due to config change.")
 	// send all the ./config dir with all the files to agent via a grpc call
-	SendConfigToAgent()
+	SendConfigToAgent(eventType, filename)
 }
 
-func SendConfigToAgent() {
+func SendConfigToAgent(eventType string, filename string) {
 	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Failed to connect: %v", err)
@@ -52,45 +58,40 @@ func SendConfigToAgent() {
 		return
 	}
 
-	configPath := "./config"
-	err = filepath.Walk(configPath, func(path string, info os.FileInfo, err error) error {
+	configPath := filename
+	content :=  []byte("")
+
+	if eventType != "delete" {
+
+		content, err = ioutil.ReadFile(configPath)
 		if err != nil {
-			return err
+			fmt.Println("Error reading config file:", err)
 		}
-		if !info.IsDir() && filepath.Ext(path) == ".yaml" { // Send only YAML files
-			content, err := ioutil.ReadFile(path)
-			if err != nil {
-				return err
-			}
-
-			// Compute checksum for YAML file
-			checksum := utils.ComputeChecksum(content)
-
-			req := &pb.ConfigFile{
-				Filename: filepath.Base(path),
-				Content:  content,
-				Checksum: checksum,
-			}
-
-			if err := stream.Send(req); err != nil {
-				return err
-			}
-			fmt.Printf("📤 Sent file: %s (Checksum: %s)\n", path, checksum)
-		}
-		return nil
-	})
-
-	if err != nil {
-		log.Fatalf("Error reading config directory: %v", err)
+		
 	}
 
-	resp, err := stream.CloseAndRecv()
-	if err != nil {
-		log.Fatalf("Error receiving response: %v", err)
+	// Compute checksum for YAML file
+	checksum := utils.ComputeChecksum(content)
+
+	req := &pb.ConfigFile{
+		Filename: filename,
+		Content:  content,
+		Checksum: checksum,
+		Eventtype: eventType,
 	}
 
-	fmt.Println("✔️ Agent response:", resp.Status)
+	if err := stream.Send(req); err != nil {
+		fmt.Println("Error sending file:", err)
+	}
+	fmt.Printf("📤 Sent file: %s (Checksum: %s)\n", configPath, checksum)
+
+	if err != nil {
+		fmt.Println("Error reading config directory:", err)
+	}
+
+	stream.CloseAndRecv()
 }
+
 func listenForChanges() {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -129,34 +130,12 @@ func listenForChanges() {
 	}
 }
 
-// Config struct for reading from YAML
-// type Config struct {
-// 	Server struct {
-// 		IP   string `yaml:"ip"`
-// 		Port string `yaml:"port"`
-// 	} `yaml:"server"`
-// }
-
-// LoadConfig reads the YAML file
-// func loadConfig(path string) (*Config, error) {
-// 	file, err := os.ReadFile(path)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	var config Config
-// 	err = yaml.Unmarshal(file, &config)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return &config, nil
-// }
-
 func main() {
 	db.ConnectDB()
 	r := gin.Default()
 	// Register authentication routes
 	routes.AuthRoutes(r)
+	routes.FileRoutes(r)
 	routes.ProtectedRoutes(r)
 	go r.Run(":8080")
 	go ping_listener.StartPingListener()

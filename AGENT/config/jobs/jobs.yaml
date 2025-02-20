@@ -1,0 +1,139 @@
+jobs:
+  - name: "Database Comparison Job"
+    description: "Compare database schemas and data values across environments."
+    agent: "Agent_A"  # Assign this job to a specific agent
+  - tasks:
+    - name: "database_schema_comparison_task"
+      description: "Task to compare database schemas across multiple databases."
+      type: "database"
+      datasets:
+        legacy:
+          - "legacy_db1"
+          - "legacy_db2"
+        new:
+          - "new_db1"
+          - "new_db2"
+      methods:
+        - column_schema_validation
+        - row_count_validation
+      dependencies: []
+      output:
+        report_path: "/path/to/reports/database_schema_comparison"
+    
+    - name: "database tables comparison"
+      description: "Task to compare tables in a tables across multiple databases"
+      legacy_db: "legacy_users_table"
+      new_db: "new_users_table"
+      table_comparison:
+        - row_count: true  # Compare the number of rows between tables
+        - column_schema: true  # Compare column schemas (names, types)
+        - primary_key: ["user_id"]  # Define primary key for identifying rows
+      filters:
+      - name: "equality_filter"
+      - name: "greater_than_filter"
+      transformers:
+        - column: "email"
+          transform: "case_insensitive"
+      methods:
+        - row_count_validation
+        - column_value_comparison
+      fields:
+        - name: "user_id"
+          type: "integer"
+          comparison: "exact"  # Exact match
+        - name: "email"
+          type: "string"
+          comparison: "case_insensitive"  # Case-insensitive comparison
+        - name: "created_at"
+          type: "datetime"
+          comparison: "format"
+          config:
+            format: "YYYY-MM-DD"
+        - name: "balance"
+          type: "float"
+          comparison: "tolerance"
+          config:
+            tolerance: 0.01
+        - name: "last_login"
+          type: "datetime"
+          exclude: true  # Ignore this field during comparison
+  
+    - name: "file_integrity_task"
+      description: "Task to verify file integrity and content consistency across systems."
+      type: "file"
+      datasets:
+        legacy:
+          - "legacy_file_set1"
+          - "legacy_file_set2"
+        new:
+          - "new_file_set1"
+          - "new_file_set2"
+      methods:
+        - checksum_comparison
+        - line_by_line_comparison
+        - metadata_comparison
+      dependencies: []
+      output:
+        report_path: "/path/to/reports/file_integrity_comparison"
+  
+    - name: "data_file_value_comparison_task"
+      description: "Task to compare data values in Parquet files across systems."
+      type: "data_file"
+      datasets:
+        legacy:
+          - "legacy_parquet1"
+          - "legacy_parquet2"
+        new:
+          - "new_parquet1"
+          - "new_parquet2"
+      methods:
+        - row_comparison
+        - schema_check
+        - numeric_tolerance_validation
+      dependencies: ["database_schema_comparison_task"]
+      output:
+        report_path: "/path/to/reports/data_file_value_comparison"
+  
+    - name: "hierarchical_directory_comparison_task"
+      description: "Task to validate directory structures and file consistency across systems."
+      type: "file"
+      datasets:
+        legacy:
+          - "/path/to/legacy/directory1"
+          - "/path/to/legacy/directory2"
+        new:
+          - "/path/to/new/directory1"
+          - "/path/to/new/directory2"
+      methods:
+        - hierarchical_directory_comparison
+      dependencies: []
+      output:
+        report_path: "/path/to/reports/directory_comparison"
+  
+    - name: "sensitive_data_masking_task"
+      description: "Task to apply masking to sensitive data before comparison."
+      type: "file"
+      datasets:
+        legacy:
+          - "legacy_file_set1"
+        new:
+          - "new_file_set1"
+      methods:
+        - masked_comparison
+      dependencies: []
+      output:
+        report_path: "/path/to/reports/sensitive_data_masking"
+  
+    - name: "regex_validation_task"
+      description: "Task to validate specific patterns in data files using regular expressions."
+      type: "data_file"
+      datasets:
+        legacy:
+          - "legacy_parquet1"
+        new:
+          - "new_parquet1"
+      methods:
+        - regex_based_content_validation
+      dependencies: ["data_file_value_comparison_task"]
+      output:
+        report_path: "/path/to/reports/regex_validation"

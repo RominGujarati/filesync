@@ -1,25 +1,22 @@
 package main
 
 import (
+	pb "agent/proto"
+	"agent/utils"
 	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+	"gopkg.in/yaml.v2"
 	"io"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
-	// "time"
-	// "context"
-	"gopkg.in/yaml.v2"
-
-	"agent/utils"
-
-	pb "agent/proto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"strings"
 )
 
 // Send ping notification to the server
-func sendPingNotification(message string) {
+func sendPingNotification(message string, serverIP string, serverPort string) {
 
 	// Load configuration
 	// config, err := loadConfig("C:/Users/bhard/OneDrive/Documents/sites/kumaran/filesync/AGENT/config/server-config.yaml")
@@ -35,7 +32,8 @@ func sendPingNotification(message string) {
 
 	// conn, err := net.Dial("udp", serverIP+":"+serverPort)
 	// localhost :6000
-	conn, err := net.Dial("udp", "localhost:6000")
+	// conn, err := net.Dial("udp", "localhost:6000")
+	conn, err := net.Dial("udp", serverIP+":"+serverPort)
 	if err != nil {
 		fmt.Printf("Failed to send ping: %v\n", err)
 		return
@@ -49,26 +47,6 @@ func sendPingNotification(message string) {
 		fmt.Println("📡 Ping sent successfully")
 	}
 }
-
-// PingServer sends the agent's IP and timestamp to the server every 1 hour in a separate goroutine
-// func pingServer(client pb.ConfigServiceClient, agentIP string) {
-// 	for {
-// 		timestamp := time.Now().Format(time.RFC3339)
-
-// 		_, err := client.Ping(context.Background(), &pb.PingRequest{
-// 			AgentIp:   agentIP,
-// 			Timestamp: timestamp,
-// 		})
-// 		if err != nil {
-// 			log.Printf("Failed to send ping: %v", err)
-// 		} else {
-// 			log.Printf("Ping sent to server: %s at %s", agentIP, timestamp)
-// 		}
-
-// 		time.Sleep(1 * time.Hour) // Wait 1 hour before the next ping
-// 	}
-// }
-
 
 type server struct {
 	pb.UnimplementedConfigServiceServer
@@ -97,7 +75,6 @@ func loadConfig(path string) (*Config, error) {
 	return &config, nil
 }
 
-
 // GetLocalIP retrieves the agent's local IP address
 func getLocalIP() (string, error) {
 	addrs, err := net.InterfaceAddrs()
@@ -112,46 +89,62 @@ func getLocalIP() (string, error) {
 	return "", fmt.Errorf("could not determine local IP address")
 }
 
-
-// gRPC function to receive YAML files with checksum validation
+// gRPC function to receive YAML files with checksum validation and handle deletions
 func (s *server) SendConfig(stream pb.ConfigService_SendConfigServer) error {
 	fmt.Println("Receiving config files...")
+	req, err := stream.Recv()
+
+	fileName := req.Filename
+	tmpdir := strings.Split(fileName, "\\")
+	fileName = tmpdir[len(tmpdir)-1]
+	tmpdir = tmpdir[:len(tmpdir)-1]
+	dir := strings.Join(tmpdir, "\\")
 
 	// Ensure the directory exists
-	savePath := "./config"
-	err := os.MkdirAll(savePath, os.ModePerm)
-	if err != nil {
+	savePath := "./"
+	filePath := filepath.Join(savePath, dir, fileName)
+	direrr := os.MkdirAll(dir, 0755)
+	if direrr != nil {
 		return fmt.Errorf("failed to create config directory: %v", err)
 	}
 
-	for {
-		req, err := stream.Recv()
-		if err == io.EOF {
-			return stream.SendAndClose(&pb.Response{Status: "Files received successfully"})
-		}
-		if err != nil {
-			return err
-		}
-
-		// Compute checksum of received YAML file
-		calculatedChecksum := utils.ComputeChecksum(req.Content)
-
-		// Compare received checksum with calculated one
-		if req.Checksum != calculatedChecksum {
-			return fmt.Errorf("Checksum mismatch for file %s: expected %s, got %s", req.Filename, req.Checksum, calculatedChecksum)
-		}
-
-		// Save the YAML file
-		filePath := filepath.Join(savePath, req.Filename)
-		err = os.WriteFile(filePath, req.Content, 0644)
-		if err != nil {
-			return err
-		}
-
-		sendPingNotification("Config file received")
-
-		fmt.Printf("✔️ Saved file: %s (Checksum: %s) ✅\n", filePath, calculatedChecksum)
+	if err == io.EOF {
+		return stream.SendAndClose(&pb.Response{Status: "Files received successfully"})
 	}
+	if err != nil {
+		return err
+	}
+
+	// Handle file deletion event
+	if req.Eventtype == "delete" {
+		err = os.Remove(filePath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to delete file %s: %v", filePath, err)
+		}
+		fmt.Printf("🗑️ Deleted file: %s\n", filePath)
+		return nil
+	}
+
+	// Compute checksum of received YAML file
+	calculatedChecksum := utils.ComputeChecksum(req.Content)
+
+	// Compare received checksum with calculated one
+	if req.Checksum != calculatedChecksum {
+		return fmt.Errorf("Checksum mismatch for file %s: expected %s, got %s", req.Filename, req.Checksum, calculatedChecksum)
+	}
+
+	// Save the YAML file
+	err = os.WriteFile(filePath, req.Content, 0644)
+	if err != nil {
+		return err
+	}
+
+	// TO DO FIX:
+	sendPingNotification("Config file received", "localhost", "6000")
+
+	fmt.Printf("✔️ Saved file: %s (Checksum: %s) ✅\n", filePath, calculatedChecksum)
+
+	return nil
 
 }
 
@@ -182,23 +175,5 @@ func main() {
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
-
-
-		// Create a gRPC client to send pings
-		// conn, err := grpc.Dial(serverIP+":"+serverPort, grpc.WithInsecure())
-		// if err != nil {
-		// 	log.Fatalf("Failed to connect to server: %v", err)
-		// }
-		// defer conn.Close()
-		// client := pb.NewConfigServiceClient(conn)
-	
-		// // Get agent's IP address
-		// agentIP, err := getLocalIP()
-		// if err != nil {
-		// 	log.Fatalf("Failed to get agent IP: %v", err)
-		// }
-	
-		// Start pinging in a separate goroutine
-		// go sendPingNotification("Agent started")
 
 }
